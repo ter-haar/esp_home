@@ -1,0 +1,120 @@
+substitutions:
+  devicename: esp32-media-player
+  friendly_name: esp32 media player
+
+globals:
+  - id: message
+    type: std::string
+
+esphome:
+  name: $devicename
+  platform: ESP32
+  board: esp32dev
+  name_add_mac_suffix: true
+  project:
+    name: jacek.media_player
+    version: "1.0"
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          id(message) = "on boot";
+      # - media_player.volume_set:
+      #     id: media_player_id
+      #     volume: 35%
+      # - media_player.play_media:
+      #     id: media_player_id
+      #     media_url: 'http://poznan7.radio.pionier.net.pl:8000/tuba9-1.mp3'
+
+wifi:
+  # use_address: esp32-media-player-0c9908
+  networks:
+  - ssid: !secret network_1_ssid
+    password: !secret network_1_password
+  - ssid: !secret network_2_ssid
+    password: !secret network_2_password
+
+# mqtt:
+#   broker: !secret mqtt_broker
+#   username: !secret mqtt_username
+#   password: !secret mqtt_password
+#   discovery: True
+
+# time:
+#   - platform: sntp
+#     id: sntp_time
+#     on_time_sync:
+#       then:
+#         - logger.log: "Synchronized system clock"
+#         - media_player.volume_set:
+#             id: media_player_id
+#             volume: 35%
+#         - media_player.play_media:
+#             id: media_player_id
+#             media_url: 'http://poznan7.radio.pionier.net.pl:8000/tuba9-1.mp3'
+
+logger:
+  level: DEBUG
+ota:
+  safe_mode: True
+web_server:
+  port: 80
+api:
+
+media_player:
+  - platform: i2s_audio
+    name: ESPHome I2S Media Player
+    id: media_player_id
+    dac_type: external
+    i2s_lrclk_pin: GPIO2
+    i2s_bclk_pin: GPIO15
+    i2s_dout_pin: GPIO13
+    mode: mono
+    on_state:
+      - logger.log: "State updated!"
+      - lambda: id(message) = "State updated!";
+    on_play:
+      - logger.log: "Playback started!"
+      - lambda: id(message) = "Playback started!";
+    on_pause:
+      - logger.log: "Playback paused!"
+      - lambda: id(message) = "Playback paused!";
+    on_idle:
+      - logger.log: "Playback finished!"
+      - lambda: id(message) = "Playback finished!";
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+display:
+    # 240×135
+  - platform: st7789v
+    model: TTGO TDisplay 135x240
+    id: local_display
+    backlight_pin: GPIO4
+    cs_pin: GPIO5
+    dc_pin: GPIO16
+    reset_pin: GPIO23
+    rotation: 90
+    lambda: |-
+      if (id(message).length() > 0) {
+        it.print(0, 0, id(font1), id(message).c_str());
+      } else {
+        it.print(0, 0, id(font1), "display init");
+      }
+
+font:
+  - file: "fonts/DURALITH.ttf"
+    id: font1
+    size: 25
+    glyphs: ['!', '"', '%', '(', ')', '+', ',','-','_','.',':','°','0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Ą','Ś','Ż','Ź','Ć','Ę','Ó','Ł','Ń',' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','ą','ś','ż','ź','ć','ę','ó','ł','ń']
+
+
+# MAX98357A
+# 15dB if a 100K resistor is connected between GAIN and GND
+# 12dB if GAIN is connected directly to GND
+# 9dB if GAIN is not connected to anything (this is the default)
+# 6dB if GAIN is connected directly to Vin
+# 3dB if a 100K resistor is connected between GAIN and Vin
+
